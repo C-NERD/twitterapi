@@ -1,4 +1,4 @@
-import parseopt, logging, httpclient, twitterapipkg / [api]
+import parseopt, logging, httpclient, pkgs / [api]
 from os import commandLineParams, getAppFilename
 from strutils import split, strip, parseInt
 from strformat import fmt
@@ -12,16 +12,16 @@ logger.addHandler()
 
 when isMainModule and not defined(js):
 
-  type
+    type
 
-    Action {.pure.} = enum
-      GetUser, GetUserTweets, SearchUsers, SearchTweets, None
+        Action {.pure.} = enum
+            GetUser, GetUserTweets, SearchUsers, SearchTweets, None
 
-  ## Get and parse cmd parameters
-  let
-    cmdparams = commandLineParams()
-    appname = getAppFilename().split("/")[^1]
-    help = fmt"""
+    ## Get and parse cmd parameters
+    let
+        cmdparams = commandLineParams()
+        appname = getAppFilename().split("/")[^1]
+        help = fmt"""
       {appname}
 
       Usage:
@@ -43,157 +43,157 @@ when isMainModule and not defined(js):
         {SearchUsers}                           Search for users. Requires option keyword and count
         {SearchTweets}                          Search for tweets. Requires option keyword and count"""
 
-  if cmdparams.len != 0:
+    if cmdparams.len != 0:
 
-    var 
-      run_info : tuple[user, keyword, output : string, count : int, action : Action] = ("", "", "", 10, None)
-      params = initOptParser(cmdparams.foldl("{a} {b}".fmt))
+        var
+            run_info: tuple[user, keyword, output: string, count: int, action: Action] = ("", "", "", 10, None)
+            params = initOptParser(cmdparams.foldl("{a} {b}".fmt))
 
-    while true:
+        while true:
 
-      params.next()
-      case params.kind
+            params.next()
+            case params.kind
 
-      of cmdEnd: break
+            of cmdEnd: break
 
-      of cmdShortOption, cmdLongOption:
-                
-        if params.key == "user" or params.key == "u":
+            of cmdShortOption, cmdLongOption:
 
-          run_info.user = params.val
-        elif params.key == "count" or params.key == "c":
+                if params.key == "user" or params.key == "u":
 
-          try:
+                    run_info.user = params.val
+                elif params.key == "count" or params.key == "c":
 
-            run_info.count = params.val.parseInt
-          except ValueError:
+                    try:
 
-            fatal("Option count has a non numerical value")
-            info("Quiting..")
-            quit(-1)
-        elif params.key == "keyword" or params.key == "k":
+                        run_info.count = params.val.parseInt
+                    except ValueError:
 
-          run_info.keyword = params.val
-        elif params.key == "output" or params.key == "o":
-            
-          run_info.output = params.val
-        elif params.key == "help" or params.key == "h":
+                        fatal("Option count has a non numerical value")
+                        info("Quiting..")
+                        quit(-1)
+                elif params.key == "keyword" or params.key == "k":
 
-          for line in help.split("\n"):
+                    run_info.keyword = params.val
+                elif params.key == "output" or params.key == "o":
 
-            stdout.writeLine line.strip
-          
-          quit(0)
+                    run_info.output = params.val
+                elif params.key == "help" or params.key == "h":
 
-      of cmdArgument:
+                    for line in help.split("\n"):
 
-        case params.key
+                        stdout.writeLine line.strip
 
-        of $GetUser:
+                    quit(0)
 
-          run_info.action = GetUser
-        of $GetUserTweets:
+            of cmdArgument:
 
-          run_info.action = GetUserTweets
-        of $SearchUsers:
+                case params.key
 
-          run_info.action = SearchUsers
-        of $SearchTweets:
+                of $GetUser:
 
-          run_info.action = SearchTweets
+                    run_info.action = GetUser
+                of $GetUserTweets:
+
+                    run_info.action = GetUserTweets
+                of $SearchUsers:
+
+                    run_info.action = SearchUsers
+                of $SearchTweets:
+
+                    run_info.action = SearchTweets
+                else:
+
+                    debug(fmt"Unsupported argument {params.key}")
+                    info("Quiting...")
+                    quit(-1)
+
+        var client = newHttpClient(timeout = 3000)
+        client.setReqHeaders()
+        case run_info.action
+
+        of GetUser:
+
+            let user = client.getUser(run_info.user)
+            if user.isSome:
+
+                let data = user.get.toJson.pretty
+                if run_info.output.len == 0:
+
+                    for line in data.split('\n'):
+
+                        stdout.writeLine(line)
+                else:
+
+                    writeFile(run_info.output, data)
+
+        of GetUserTweets:
+
+            let user = client.getUser(run_info.user)
+            if user.isSome:
+
+                let
+                    tweet = client.getUserTweets(user.get, run_info.count)
+                    data = tweet.toJson.pretty
+                if run_info.output.len == 0:
+
+                    for line in data.split('\n'):
+
+                        stdout.writeLine(line)
+                else:
+
+                    writeFile(run_info.output, data)
+            else:
+
+                debug(fmt"Cannot find user {run_info.user}")
+
+        of SearchUsers:
+
+            if run_info.keyword.len != 0:
+
+                let
+                    users = client.searchUsers(run_info.keyword, run_info.count)
+                    data = users.toJson.pretty
+
+                if run_info.output.len == 0:
+
+                    for line in data.split('\n'):
+
+                        stdout.writeLine(line)
+                else:
+
+                    writeFile(run_info.output, data)
+            else:
+
+                debug("Keyword option is not given")
+
+        of SearchTweets:
+
+            if run_info.keyword.len != 0:
+
+                let
+                    tweets = client.searchTweets(run_info.keyword, run_info.count)
+                    data = tweets.toJson.pretty
+
+                if run_info.output.len == 0:
+
+                    for line in data.split('\n'):
+
+                        stdout.writeLine(line)
+                else:
+
+                    writeFile(run_info.output, data)
+            else:
+
+                debug("Keyword option is not given")
+
         else:
 
-          debug(fmt"Unsupported argument {params.key}")
-          info("Quiting...")
-          quit(-1)
-
-    var client = newHttpClient(timeout = 3000)
-    client.setReqHeaders()
-    case run_info.action
-
-    of GetUser:
-
-      let user = client.getUser(run_info.user)
-      if user.isSome:
-
-        let data = user.get.toJson.pretty
-        if run_info.output.len == 0:
-
-          for line in data.split('\n'):
-
-            stdout.writeLine(line)
-        else:
-
-          writeFile(run_info.output, data)
-
-    of GetUserTweets:
-
-      let user = client.getUser(run_info.user)
-      if user.isSome:
-
-        let 
-          tweet = client.getUserTweets(user.get, run_info.count)
-          data = tweet.toJson.pretty
-        if run_info.output.len == 0:
-
-          for line in data.split('\n'):
-
-            stdout.writeLine(line)
-        else:
-
-          writeFile(run_info.output, data)
-      else:
-
-        debug(fmt"Cannot find user {run_info.user}")
-
-    of SearchUsers:
-
-      if run_info.keyword.len != 0:
-
-        let 
-          users = client.searchUsers(run_info.keyword, run_info.count)
-          data = users.toJson.pretty
-
-        if run_info.output.len == 0:
-
-          for line in data.split('\n'):
-
-            stdout.writeLine(line)
-        else:
-
-          writeFile(run_info.output, data)
-      else:
-
-        debug("Keyword option is not given")
-
-    of SearchTweets:
-
-      if run_info.keyword.len != 0:
-
-        let 
-          tweets = client.searchTweets(run_info.keyword, run_info.count)
-          data = tweets.toJson.pretty
-
-        if run_info.output.len == 0:
-
-          for line in data.split('\n'):
-
-            stdout.writeLine(line)
-        else:
-
-          writeFile(run_info.output, data)
-      else:
-
-        debug("Keyword option is not given")
+            discard
 
     else:
 
-      discard
+        for line in help.split("\n"):
 
-  else:
+            stdout.writeLine line.strip
 
-    for line in help.split("\n"):
-
-      stdout.writeLine line.strip
-
-    quit(0)
+        quit(0)

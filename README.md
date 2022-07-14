@@ -16,7 +16,7 @@ In order to compile or use this project as a library you need to have the nim co
 This project can be used as a cli tool by simply compiling it with
 
 ```bash
-nimble make
+nimble build
 ```
 
 or, it can be imported as a library by importing the api.nim file from the project
@@ -41,4 +41,4 @@ Clone this repo, in the project root directory type `nimble install` now you can
 
 To view the documentation just navigate to your nimble directory (directory where nimble stores installed libraries) look for the twitterapi library and inside the library use
 
-`nim doc` followed by the file whose documentation you wish to view
+`nim doc --project --index:on twitterapi.nim` followed by the file whose documentation you wish to view
